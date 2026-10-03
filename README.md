@@ -32,7 +32,13 @@ This is a personal fork of [laanlabs/openPlan3D](https://github.com/laanlabs/ope
 - **Settings → Dimensions → Wall thickness** sets the thickness of new walls (default 15 cm; shown in inches in imperial projects; up to 100 cm). It is saved in the browser, so it applies to every project.
 - **Apply to all walls** sets every existing wall on every floor to that thickness in one undo step. Existing walls otherwise keep their own thickness, which you can still change per wall in the Properties panel.
 
-Where to look in the code: the PDF title block is in `renderPDF` in [`src/lib/utils/export.ts`](src/lib/utils/export.ts) (default name: `DEFAULT_DESIGNER`); the compass is in [`src/lib/utils/compassGeometry.ts`](src/lib/utils/compassGeometry.ts); the thickness setting is `wallThickness` in [`src/lib/stores/settings.ts`](src/lib/stores/settings.ts).
+**Drawing walls to an exact length**
+
+- **Feet, not inches.** After the first click, type a length and press Enter. In imperial projects a bare number is **feet** (`10` is 10 ft); `10'6`, `10'6"` and `6"` also work. In metric projects a bare number is cm; `3m` and `250cm` work too.
+- **Exact length box (optional, off by default).** Turn on **Exact length** under Draw Wall in the Build panel, or press **L** with the wall tool. After the first click a small box appears next to the start point with **Feet / Inches** fields (metres / cm in metric). Tab switches field, Enter places the wall along your cursor's direction, Esc clears it.
+- **Snap step.** **Settings → Dimensions → Snap step** (1", 3", 6", 1' or 1, 5, 10, 25 cm). While drawing, the wall's *length* snaps to the step, so lengths grow in clean steps. Switching units resets a preset step to the default for the new units (25 cm or 6").
+
+Where to look in the code: the PDF title block is in `renderPDF` in [`src/lib/utils/export.ts`](src/lib/utils/export.ts) (default name: `DEFAULT_DESIGNER`); the compass is in [`src/lib/utils/compassGeometry.ts`](src/lib/utils/compassGeometry.ts); the thickness setting is `wallThickness` in [`src/lib/stores/settings.ts`](src/lib/stores/settings.ts); typed and boxed wall lengths are parsed in [`src/lib/utils/drawnLength.ts`](src/lib/utils/drawnLength.ts).
 
 ---
 

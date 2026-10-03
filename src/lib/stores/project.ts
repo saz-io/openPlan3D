@@ -46,6 +46,8 @@ export const activeFloor = derived(currentProject, ($p) => {
 
 export type Tool = 'select' | 'wall' | 'door' | 'window' | 'furniture' | 'text' | 'measure' | 'annotate';
 export const selectedTool = writable<Tool>('select');
+/** Optional exact-length box shown after the first wall point (toggle with L). */
+export const exactLengthEnabled = writable(false);
 
 /** Shared activation for the sidebar and keyboard measurement tools. */
 export function activateMeasurementTool(tool: 'measure' | 'annotate') {

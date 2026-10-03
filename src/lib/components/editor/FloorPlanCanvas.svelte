@@ -9,6 +9,7 @@
   import { planContentBounds, hasPlanContent } from '$lib/utils/planContentBounds';
   import { connectedWallEndpoints } from '$lib/utils/wallEditing';
   import { createDrawScheduler } from '$lib/utils/drawScheduler';
+  import { exactLengthEnabled } from '$lib/stores/project';
   import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, moveWallGeometryDuringDrag, updateDoor, updateWindow, addFurniture, moveFurniture, transformFurnitureDuringDrag, rotateFurniture, rotateSelection, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateSelection, pasteSelection, moveWallParallel, splitWall, wallSplitIntersectsOpening, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasMinimumZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, updateMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, toggleSelectionLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
@@ -21,6 +22,7 @@
   import { getCatalogItem, getFurnitureSize, type FurnitureDef } from '$lib/utils/furnitureCatalog';
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut, isEditingField, isControlKey } from '$lib/utils/shortcuts';
+  import { parseDrawnLength, lengthFromFields, snapLengthAlong } from '$lib/utils/drawnLength';
   import { hasOpenModal } from '$lib/utils/modalDialog';
   import ContextMenu from './ContextMenu.svelte';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
@@ -69,6 +71,13 @@
   let wallStart: Point | null = $state(null);
   // Digits typed while drawing a wall — Enter places the wall at exactly this length (issue #6)
   let typedWallLength = $state('');
+  // Optional exact-length box (feet + inches, or m + cm), shown after the first wall point.
+  let exactMajor = $state('');
+  let exactMinor = $state('');
+  let exactMajorInput: HTMLInputElement | null = $state(null);
+  let exactBoxOn = $state(false);
+  onDestroy(exactLengthEnabled.subscribe(on => { exactBoxOn = on; }));
+  function clearExactFields() { exactMajor = ''; exactMinor = ''; }
   let wallSequenceFirst: Point | null = $state(null);
   let mousePos: Point = $state({ x: 0, y: 0 });
 
@@ -1805,6 +1814,7 @@
         wallStart = null;
         wallSequenceFirst = null;
         typedWallLength = '';
+        clearExactFields();
       }
       currentFloor = f;
       updateDetectedRooms();
@@ -1835,6 +1845,7 @@
         wallStart = null;
         wallSequenceFirst = null;
         typedWallLength = '';
+        clearExactFields();
       }
       currentTool = t;
       textAnnotationMode = t === 'text';
@@ -2435,6 +2446,7 @@
       let endPt = snapWallEndPoint(wp);
       if (wallStart) endPt = applyTypedWallLength(endPt);
       typedWallLength = '';
+      clearExactFields();
       if (!wallStart) {
         wallStart = endPt;
         wallSequenceFirst = endPt;
@@ -3317,8 +3329,13 @@
   // ── Exact-length wall entry (issue #6) ────────────────────────────
   /** Shared endpoint snapping for wall drawing: magnetic + Shift/angle snap. */
   function snapWallEndPoint(raw: Point): Point {
-    let endPt = magneticSnap(raw);
+    const magnet = magneticSnap(raw);
+    let endPt: Point = magnet;
     if (!wallStart) return endPt;
+    // With grid snap on, snap the wall's length (not x and y separately) so lengths
+    // grow in clean steps; endpoint and wall magnets still win.
+    const snapLength = currentSnapEnabled && currentSnapToGrid && !magnet.snappedToEndpoint && !magnet.snappedToWall;
+    if (snapLength) endPt = raw;
     if (shiftDown) {
       // Force strict angle snap when Shift is held (0°, 45°, 90°, 135°, 180°)
       const sdx = endPt.x - wallStart.x;
@@ -3334,13 +3351,37 @@
     } else {
       endPt = angleSnap(wallStart, endPt);
     }
+    if (snapLength) endPt = snapLengthAlong(wallStart, endPt, currentGridSize);
     return endPt;
   }
 
   function typedWallLengthCm(): number | null {
-    const v = parseFloat(typedWallLength);
-    if (!isFinite(v) || v <= 0) return null;
-    return dimSettings.units === 'imperial' ? v * 2.54 : v;
+    // The exact-length box wins; otherwise typed digits (feet in imperial, cm in metric).
+    const boxed = lengthFromFields(dimSettings.units, exactMajor, exactMinor);
+    return boxed ?? parseDrawnLength(typedWallLength, dimSettings.units);
+  }
+
+  function onExactKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Enter') { e.preventDefault(); commitTypedWall(); }
+    else if (e.key === 'Escape') { e.preventDefault(); clearExactFields(); (e.target as HTMLElement).blur(); markDirty(); }
+    else if ((e.key === 'l' || e.key === 'L') && !e.ctrlKey && !e.metaKey) { e.preventDefault(); exactLengthEnabled.set(false); (e.target as HTMLElement).blur(); }
+  }
+
+  // Focus the box as soon as the first wall point is placed.
+  $effect(() => { if (exactBoxOn && currentTool === 'wall' && wallStart && exactMajorInput) exactMajorInput.focus(); });
+
+  /** Places the wall at the typed or boxed length along the cursor direction. */
+  function commitTypedWall() {
+    if (!wallStart || typedWallLengthCm() === null) return;
+    const endPt = applyTypedWallLength(snapWallEndPoint(mousePos));
+    if (Math.hypot(endPt.x - wallStart.x, endPt.y - wallStart.y) > 1) {
+      addWall(wallStart, endPt);
+      wallStart = endPt;
+    }
+    typedWallLength = '';
+    clearExactFields();
+    markDirty();
+    exactMajorInput?.focus();
   }
 
   /** Override the wall end point to the exact typed length along the current direction. */
@@ -3374,7 +3415,7 @@
     // Exact-length entry while drawing a wall (issue #6):
     // type a number, then Enter places the wall at exactly that length.
     if (currentTool === 'wall' && wallStart && !editingTextAnnotationId && !e.metaKey && !e.ctrlKey) {
-      if (/^[0-9.]$/.test(e.key)) {
+      if (/^[0-9.]$/.test(e.key) || (dimSettings.units === 'imperial' && /^['"]$/.test(e.key))) {
         typedWallLength += e.key;
         markDirty();
         e.preventDefault();
@@ -3387,13 +3428,7 @@
         return;
       }
       if (e.key === 'Enter' && typedWallLengthCm() !== null) {
-        const endPt = applyTypedWallLength(snapWallEndPoint(mousePos));
-        if (Math.hypot(endPt.x - wallStart.x, endPt.y - wallStart.y) > 1) {
-          addWall(wallStart, endPt);
-          wallStart = endPt;
-        }
-        typedWallLength = '';
-        markDirty();
+        commitTypedWall();
         e.preventDefault();
         return;
       }
@@ -3446,7 +3481,7 @@
       clearAuxiliarySelection();
       selectedRoomId.set(null);
       elevationPickMode.set(false);
-      wallStart = null; wallSequenceFirst = null; typedWallLength = '';
+      wallStart = null; wallSequenceFirst = null; typedWallLength = ''; clearExactFields();
       placingFurnitureId.set(null);
       placingEntourageId.set(null);
       placingRotation.set(0);
@@ -4007,6 +4042,41 @@
     </div>
   {/if}
   <!-- Inline text annotation editor -->
+  {#if exactBoxOn && currentTool === 'wall' && wallStart}
+    {@const anchor = worldToScreen(wallStart.x, wallStart.y)}
+    {@const imperial = dimSettings.units === 'imperial'}
+    <div
+      class="absolute z-20 bg-white/95 dark:bg-gray-800/95 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg px-3 py-2 text-xs text-gray-600 dark:text-gray-300"
+      style="left: {Math.max(4, Math.min(anchor.x + 16, width - 236))}px; top: {Math.max(4, Math.min(anchor.y + 16, height - 84))}px"
+      role="group"
+      aria-label={$t('exactLength.title')}
+    >
+      <div class="font-medium mb-1">{$t('exactLength.title')}</div>
+      <div class="flex items-center gap-1">
+        <input
+          bind:this={exactMajorInput}
+          type="text" inputmode="decimal" autocomplete="off"
+          aria-label={imperial ? $t('exactLength.feet') : $t('exactLength.metres')}
+          class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-700"
+          value={exactMajor}
+          oninput={(e) => { exactMajor = (e.target as HTMLInputElement).value.replace(/[^0-9.]/g, ''); (e.target as HTMLInputElement).value = exactMajor; markDirty(); }}
+          onkeydown={onExactKeyDown}
+        />
+        <span>{imperial ? 'ft' : 'm'}</span>
+        <input
+          type="text" inputmode="decimal" autocomplete="off"
+          aria-label={imperial ? $t('exactLength.inches') : $t('exactLength.centimetres')}
+          class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-700"
+          value={exactMinor}
+          oninput={(e) => { exactMinor = (e.target as HTMLInputElement).value.replace(/[^0-9.]/g, ''); (e.target as HTMLInputElement).value = exactMinor; markDirty(); }}
+          onkeydown={onExactKeyDown}
+        />
+        <span>{imperial ? 'in' : 'cm'}</span>
+      </div>
+      <div class="mt-1 text-[11px] text-gray-400">{$t('exactLength.hint')}</div>
+    </div>
+  {/if}
+
   {#if editingTextAnnotationId}
     <input
       type="text"

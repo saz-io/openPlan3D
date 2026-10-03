@@ -1,4 +1,4 @@
-import { selectedTool, activateMeasurementTool, undo, redo, viewMode, selectedElementId, selectedElementIds, removeElement, panMode, beginUndoGroup, endUndoGroup } from '$lib/stores/project';
+import { selectedTool, activateMeasurementTool, undo, redo, viewMode, selectedElementId, selectedElementIds, removeElement, panMode, beginUndoGroup, endUndoGroup, exactLengthEnabled } from '$lib/stores/project';
 import { get } from 'svelte/store';
 import { manualSave } from '$lib/stores/saveStatus';
 import { hasOpenModal } from './modalDialog';
@@ -81,6 +81,7 @@ export function handleGlobalShortcut(e: KeyboardEvent, ctx: ShortcutContext = {}
   if (e.key === 'd' || e.key === 'D') { selectedTool.set('door'); panMode.set(false); return true; }
   if (e.key === 'v' || e.key === 'V') { selectedTool.set('select'); panMode.set(false); return true; }
   if (e.key === 'h' || e.key === 'H') { panMode.set(true); return true; }
+  if ((e.key === 'l' || e.key === 'L') && get(selectedTool) === 'wall') { exactLengthEnabled.update(on => !on); return true; }
   if (e.key === 't' || e.key === 'T') { selectedTool.set('text'); panMode.set(false); return true; }
   if (e.key === 'r' || e.key === 'R') {
     if (ctx.rotateFurniture) ctx.rotateFurniture();
