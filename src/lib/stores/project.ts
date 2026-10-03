@@ -1,4 +1,5 @@
 import { selectionRotation } from '$lib/utils/selectionRotation';
+import { compassText } from '$lib/utils/compassText';
 import { splitWallRoomReferences } from '$lib/utils/splitWallRooms';
 import { splitWallGeometry } from '$lib/utils/splitWallGeometry';
 import { wallPathProfile } from '$lib/utils/wallProfiles';
@@ -1255,7 +1256,7 @@ export function addCompass(x: number, y: number): string {
   const id = uid();
   mutate(f => {
     if (!f.textAnnotations) f.textAnnotations = [];
-    f.textAnnotations.push({ id, x, y, text: '▲\nN', fontSize: 28, color: '#1e293b', rotation: 0, kind: 'compass' });
+    f.textAnnotations.push({ id, x, y, text: compassText('N'), fontSize: 24, color: '#1e293b', rotation: 0, kind: 'compass' });
   });
   return id;
 }
