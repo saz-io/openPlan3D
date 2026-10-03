@@ -664,6 +664,21 @@ export async function exportPDF(project: Project) {
   return renderPDF(snapshot,preparedImages,capture);
 }
 
+const DESIGNER_KEY = 'floorplan.designerName';
+const DEFAULT_DESIGNER = 'saz';
+
+function getDesignerName(): string {
+  try {
+    const stored = localStorage.getItem(DESIGNER_KEY) ?? DEFAULT_DESIGNER;
+    const entered = typeof window !== 'undefined' ? window.prompt('Name to show on the PDF:', stored) : null;
+    const name = (entered ?? stored).trim() || DEFAULT_DESIGNER;
+    localStorage.setItem(DESIGNER_KEY, name);
+    return name;
+  } catch {
+    return DEFAULT_DESIGNER;
+  }
+}
+
 function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImageElement>, capture: {width:number;height:number;image?:string}|null) {
   const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
   if (!floor) return;
@@ -674,6 +689,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   if (!hasPlanExportContent(floor) && !entourage.length) return;
 
   const settings = get(projectSettings);
+  const designerName = getDesignerName();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pw = pdf.internal.pageSize.getWidth();   // ~297
   const ph = pdf.internal.pageSize.getHeight();   // ~210
@@ -688,6 +704,26 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     // inner border
     pdf.setLineWidth(0.15);
     pdf.rect(margin + 1, margin + 1, pw - margin * 2 - 2, ph - margin * 2 - 2);
+  }
+
+  // North arrow with N/S labels; plan north is up the page.
+  function drawCompass(cx: number, cy: number) {
+    const r = 9;
+    pdf.setDrawColor(40);
+    pdf.setFillColor(40);
+    pdf.setLineWidth(0.3);
+    pdf.circle(cx, cy, r);
+    pdf.line(cx, cy - r, cx, cy + r);
+    pdf.line(cx - r, cy, cx + r, cy);
+    pdf.triangle(cx, cy - r + 1, cx - 2.5, cy + 1, cx + 2.5, cy + 1, 'F');
+    pdf.setTextColor(40);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9);
+    pdf.text('N', cx, cy - r - 1.5, { align: 'center' });
+    pdf.text('S', cx, cy + r + 4, { align: 'center' });
+    pdf.setFontSize(7);
+    pdf.text('E', cx + r + 1.5, cy + 1, { align: 'left' });
+    pdf.text('W', cx - r - 1.5, cy + 1, { align: 'right' });
   }
 
   function drawTitleBlock() {
@@ -723,10 +759,10 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     // Branding
     pdf.setFontSize(9);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('openplan3d.com', col2 + 4, tbY + 9);
+    pdf.text(designerName, col2 + 4, tbY + 9);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7);
-    pdf.text('Created with Open 3D Floor Planner', col2 + 4, tbY + 15);
+    pdf.text(`Created by ${designerName}`, col2 + 4, tbY + 15);
   }
 
   // ── Page 1: Floor Plan ──
@@ -847,6 +883,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   const imgY = margin + 2 + (drawAreaH - imgH) / 2;
   pdf.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
 
+  drawCompass(pw - margin - 16, margin + 18);
   drawTitleBlock();
 
   // Room schedule: repeat headings and reserve the title block on every page.
