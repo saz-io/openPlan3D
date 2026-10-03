@@ -15,13 +15,24 @@ This is a personal fork of [laanlabs/openPlan3D](https://github.com/laanlabs/ope
 
 ## What's different in this fork
 
-PDF export has been customised:
+**PDF export**
 
-- **Your name on the PDF.** The title block shows a name you choose ("Created by …") instead of upstream's openplan3d.com branding.
-- **Name prompt.** Each PDF export asks for the name to show. Your last answer is remembered in the browser and offered as the default.
-- **Compass.** A circle with N, S, E and W labels and a north arrow is drawn in the top-right corner of the plan page. North always points up the page; the editor has no north setting.
+- **Your name on the PDF.** The title block shows a name you choose, with a line under it that defaults to "Created by <name>" (leave it empty to hide it), instead of upstream's openplan3d.com branding. Each export asks for both and remembers your answers in the browser.
+- **Cleaner layout.** One page with a redesigned title block (project, date, name). The Room Schedule pages, the automatic wall length labels and the "Units" line are gone. Dimension lines and measurements you draw are kept; room names and areas still show.
+- **No automatic compass.** A compass appears only if you place one (below).
 
-To change the default name, edit `DEFAULT_DESIGNER` in [`src/lib/utils/export.ts`](src/lib/utils/export.ts). The title block and compass drawing are in the same file, inside `renderPDF`.
+**Compass object**
+
+- Click **Compass** in the Build panel to place a four-pointed star in a ring with N, S, E and W labels.
+- Rotate it with **Rotation (°)** in the Properties panel to point at true north; **Font Size** resizes it, **Color** recolours it, and each of the four labels can be edited (for example "Norte").
+- It is drawn in the editor, PNG, PDF, SVG and DXF exports. Rotation is by typing an angle; there is no drag handle.
+
+**Wall thickness**
+
+- **Settings → Dimensions → Wall thickness** sets the thickness of new walls (default 15 cm; shown in inches in imperial projects; up to 100 cm). It is saved in the browser, so it applies to every project.
+- **Apply to all walls** sets every existing wall on every floor to that thickness in one undo step. Existing walls otherwise keep their own thickness, which you can still change per wall in the Properties panel.
+
+Where to look in the code: the PDF title block is in `renderPDF` in [`src/lib/utils/export.ts`](src/lib/utils/export.ts) (default name: `DEFAULT_DESIGNER`); the compass is in [`src/lib/utils/compassGeometry.ts`](src/lib/utils/compassGeometry.ts); the thickness setting is `wallThickness` in [`src/lib/stores/settings.ts`](src/lib/stores/settings.ts).
 
 ---
 
@@ -38,7 +49,7 @@ npm run dev
 
 Open <http://localhost:5173>.
 
-To export a PDF: draw at least one wall, then use **Export → PDF** in the top bar (or the command palette). Enter the name to show when asked.
+To export a PDF: draw at least one wall, then use **Export → PDF** in the top bar (or the command palette). Enter the name and the line under it when asked.
 
 ### Production build
 
