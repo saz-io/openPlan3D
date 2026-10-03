@@ -91,17 +91,19 @@ it('uses the saved name when drawing the PNG export', async () => {
   expect(canvasText.mock.calls.map(call => call[0])).toContain('Kitchen & Dining <East>');
 });
 
-it('uses saved names and distinct textures for same-name rooms in the PDF schedule', async () => {
+it('draws saved room names on the PDF plan and adds no room schedule', async () => {
   const project = roomProject();
   const floor = project.floors[0];
   floor.walls.push(...rectangleWalls('b', 600));
   floor.rooms = resolveRooms(floor).map((room, i) => ({ ...room, name: 'Bedroom', floorTexture: i ? 'tile' : 'carpet' }));
   await exportPDF(project);
+  const planText = canvasText.mock.calls.map(call => call[0]);
+  expect(planText.filter(value => value === 'Bedroom')).toHaveLength(2);
+  expect(planText).not.toContain('Room 1');
   const text = pdfText.mock.calls.map(call => call[0]);
-  expect(text.filter(value => value === 'Bedroom')).toHaveLength(2);
-  expect(text).toContain('carpet');
-  expect(text).toContain('tile');
-  expect(text).not.toContain('Room 1');
+  expect(text).not.toContain('Room Schedule');
+  expect(text).not.toContain('carpet');
+  expect(text).not.toContain('TOTAL');
   expect(pdfSave).toHaveBeenCalledOnce();
 });
 
@@ -163,18 +165,23 @@ it('draws curved wall paths in SVG and raster exports rather than endpoint chord
   expect((dxf.match(/\nLWPOLYLINE\n/g) ?? []).length).toBe(4); // one joined curve outline + 3 straight walls
 });
 
-it('keeps large room schedules above the title block and repeats headings', async () => {
+it('keeps large plans on one page without a room schedule', async () => {
   const project = benchmarkProject('large'), floor = project.floors[0], extra = project.floors[1];
   extra.walls.forEach(w => { w.start.x += 2200; w.end.x += 2200; });
   floor.walls.push(...extra.walls); floor.rooms.push(...extra.rooms);
   floor.rooms.forEach((room, i) => { room.name = `Suite ${i + 1}`; });
   await exportPDF(project);
-  const rows = pdfText.mock.calls.filter(call => /^Suite /.test(call[0]));
-  expect(rows).toHaveLength(32);
-  expect(rows.every(call => call[2] >= 38 && call[2] < 174)).toBe(true);
-  expect(pdfText.mock.calls.filter(call => call[0] === 'Room Schedule')).toHaveLength(3);
-  const total = pdfText.mock.calls.find(call => call[0] === 'TOTAL')!;
-  expect(total[2]).toBeLessThan(174);
+  expect(pdfText.mock.calls.some(call => /^Suite /.test(call[0]))).toBe(false);
+  expect(pdfText.mock.calls.some(call => call[0] === 'Room Schedule' || call[0] === 'TOTAL')).toBe(false);
+  expect(pdfSave).toHaveBeenCalledOnce();
+});
+
+it('leaves automatic wall length labels out of the PDF', async () => {
+  const project = namedProject();
+  const lengths = project.floors[0].walls.map(w => `${Math.round(Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y))} cm`);
+  await exportPDF(project);
+  const drawn = canvasText.mock.calls.map(call => call[0]);
+  expect(lengths.some(label => drawn.includes(label))).toBe(false);
 });
 
 it('does not probe unrelated canvases when exporting the optional 3D page', async () => {
