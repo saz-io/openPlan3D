@@ -549,6 +549,8 @@ export const en = {
   "buildTools.annotate": "Annotate",
   "buildTools.text": "Text Label",
   "buildTools.textHelp": "Add text annotations (T)",
+  "buildTools.compass": "Compass",
+  "buildTools.compassHelp": "Add a north arrow; rotate it to set north",
   "buildTools.dimension": "Dimension",
   "buildTools.dimensionHelp": "Add dimension annotations (N)",
   "buildTools.measure": "Measure",

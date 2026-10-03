@@ -710,7 +710,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   function drawCompass(cx: number, cy: number) {
     const r = 9;
     pdf.setDrawColor(40);
-    pdf.setFillColor(40);
+    pdf.setFillColor(40, 40, 40);
     pdf.setLineWidth(0.3);
     pdf.circle(cx, cy, r);
     pdf.line(cx, cy - r, cx, cy + r);
@@ -883,7 +883,8 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   const imgY = margin + 2 + (drawAreaH - imgH) / 2;
   pdf.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
 
-  drawCompass(pw - margin - 16, margin + 18);
+  // The fixed corner compass is a fallback; a placed compass object replaces it.
+  if (!floor.textAnnotations?.some(note => note.kind === 'compass')) drawCompass(pw - margin - 16, margin + 18);
   drawTitleBlock();
 
   // Room schedule: repeat headings and reserve the title block on every page.

@@ -8,7 +8,7 @@
   import { openProject } from '$lib/services/projectOpening';
   import ImportError from '$lib/components/ImportError.svelte';
   import { onDestroy } from 'svelte';
-  import { activateMeasurementTool, selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY, placingEntourageId, addCustomEntourage } from '$lib/stores/project';
+  import { activateMeasurementTool, selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY, placingEntourageId, addCustomEntourage, addCompass, selectedElementId } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
   import type { Door, Window as Win, CustomEntourageDef } from '$lib/models/types';
   import { entourageCatalog, entourageCategories } from '$lib/utils/entourageCatalog';
@@ -59,6 +59,15 @@
       const template = templateName ? roomTemplates.find(t => t.name === templateName) ?? null : null;
       placeRoomTemplate(preset, { x: cx, y: cy }, template);
     }
+  }
+
+  function onCompassClick() {
+    let cx = 0, cy = 0;
+    canvasCamX.subscribe(v => { cx = v; })();
+    canvasCamY.subscribe(v => { cy = v; })();
+    const id = addCompass(cx, cy);
+    selectedTool.set('select');
+    selectedElementId.set(id);
   }
 
   function onFurnitureClick(item: FurnitureDef) {
@@ -446,6 +455,19 @@
           <div class="text-left">
             <div class="font-medium">{$t('buildTools.text')}</div>
             <div class="text-xs text-gray-400">{$t('buildTools.textHelp')}</div>
+          </div>
+        </button>
+
+        <button
+          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-gray-50 text-gray-700"
+          onclick={onCompassClick}
+        >
+          <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 18,16 12,13 6,16" fill="currentColor"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+          </div>
+          <div class="text-left">
+            <div class="font-medium">{$t('buildTools.compass')}</div>
+            <div class="text-xs text-gray-400">{$t('buildTools.compassHelp')}</div>
           </div>
         </button>
 

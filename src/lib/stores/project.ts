@@ -1249,6 +1249,16 @@ export function addTextAnnotation(x: number, y: number, text: string, fontSize =
   return id;
 }
 
+/** Adds a north-arrow compass; rotate it to point at true north. */
+export function addCompass(x: number, y: number): string {
+  const id = uid();
+  mutate(f => {
+    if (!f.textAnnotations) f.textAnnotations = [];
+    f.textAnnotations.push({ id, x, y, text: '▲\nN', fontSize: 28, color: '#1e293b', rotation: 0, kind: 'compass' });
+  });
+  return id;
+}
+
 export function removeTextAnnotation(id: string) {
   removeElement(id);
 }

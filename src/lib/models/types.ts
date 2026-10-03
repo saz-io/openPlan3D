@@ -176,6 +176,8 @@ export interface TextAnnotation {
   fontSize: number;
   color: string;
   rotation: number;
+  /** 'compass' marks a north arrow; rotation points it at true north. */
+  kind?: 'compass';
 }
 
 export interface GuideLine {
