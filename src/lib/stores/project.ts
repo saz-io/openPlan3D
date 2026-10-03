@@ -1256,7 +1256,7 @@ export function addCompass(x: number, y: number): string {
   const id = uid();
   mutate(f => {
     if (!f.textAnnotations) f.textAnnotations = [];
-    f.textAnnotations.push({ id, x, y, text: compassText('N', 'S'), fontSize: 24, color: '#1e293b', rotation: 0, kind: 'compass' });
+    f.textAnnotations.push({ id, x, y, text: compassText('N'), fontSize: 24, color: '#1e293b', rotation: 0, kind: 'compass' });
   });
   return id;
 }

@@ -19,7 +19,7 @@
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { projectSettings, formatLength, formatArea, parseLengthInput } from '$lib/stores/settings';
-    import { compassLabels, compassText } from '$lib/utils/compassText';
+    import { compassLabel, compassText } from '$lib/utils/compassText';
     import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column, RoomCategory, TextAnnotation } from '$lib/models/types';
   import { getWallStartHeight, getWallEndHeight } from '$lib/models/types';
 
@@ -983,14 +983,9 @@
         {$t('annotationProperties.heading')}
       </h3>
       {#if selectedTextAnnotation.kind === 'compass'}
-        {@const labels = compassLabels(selectedTextAnnotation.text)}
         <label class="block">
           <span class="text-xs text-gray-500">{$t('annotationProperties.northLabel')}</span>
-          <input type="text" value={labels.north} maxlength="12" oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { text: compassText((e.target as HTMLInputElement).value, labels.south) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
-        </label>
-        <label class="block">
-          <span class="text-xs text-gray-500">{$t('annotationProperties.southLabel')}</span>
-          <input type="text" value={labels.south} maxlength="12" oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { text: compassText(labels.north, (e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+          <input type="text" value={compassLabel(selectedTextAnnotation.text)} maxlength="12" oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { text: compassText((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
         </label>
       {:else}
       <label class="block">

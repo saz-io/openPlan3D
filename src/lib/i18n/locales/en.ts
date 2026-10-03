@@ -550,7 +550,6 @@ export const en = {
   "buildTools.text": "Text Label",
   "buildTools.textHelp": "Add text annotations (T)",
   "annotationProperties.northLabel": "North label",
-  "annotationProperties.southLabel": "South label",
   "buildTools.compass": "Compass",
   "buildTools.compassHelp": "Add a north arrow; rotate it to set north",
   "buildTools.dimension": "Dimension",

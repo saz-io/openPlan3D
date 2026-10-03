@@ -1,11 +1,11 @@
-/** A compass is a text annotation: north label, up arrow, shaft, down arrow, south label. */
-const COMPASS_TEXT = /^([^\n]*)\n▲\n(?:│\n)?▼\n([^\n]*)$/;
+/** A compass is a text annotation: a north label above an up arrow. */
+const COMPASS_TEXT = /^([^\n]*)\n▲(?:\n.*)?$/;
 
-export function compassLabels(text: string): { north: string; south: string } {
+export function compassLabel(text: string): string {
   const match = COMPASS_TEXT.exec(text);
-  return match ? { north: match[1], south: match[2] } : { north: 'N', south: 'S' };
+  return match ? match[1] : 'N';
 }
 
-export function compassText(north: string, south: string): string {
-  return `${north.replace(/\n/g, ' ')}\n▲\n│\n▼\n${south.replace(/\n/g, ' ')}`;
+export function compassText(north: string): string {
+  return `${north.replace(/\n/g, ' ')}\n▲`;
 }
