@@ -129,7 +129,7 @@
         key: 'textAnnotations', label: $t('layers.textAnnotations'), icon: 'T',
         items: floor.textAnnotations.map((note, i) => ({
           id: note.id,
-          label: $t('layers.note', { number: i + 1, text: note.text.trim().replace(/\s+/g, ' ') || $t('layers.emptyNote') }),
+          label: $t('layers.note', { number: i + 1, text: note.kind === 'compass' ? $t('buildTools.compass') : note.text.trim().replace(/\s+/g, ' ') || $t('layers.emptyNote') }),
           icon: 'T',
         })),
       });
