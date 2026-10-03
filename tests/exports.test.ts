@@ -176,6 +176,14 @@ it('keeps large plans on one page without a room schedule', async () => {
   expect(pdfSave).toHaveBeenCalledOnce();
 });
 
+it('leaves automatic wall length labels out of the PDF', async () => {
+  const project = namedProject();
+  const lengths = project.floors[0].walls.map(w => `${Math.round(Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y))} cm`);
+  await exportPDF(project);
+  const drawn = canvasText.mock.calls.map(call => call[0]);
+  expect(lengths.some(label => drawn.includes(label))).toBe(false);
+});
+
 it('does not probe unrelated canvases when exporting the optional 3D page', async () => {
   const unrelated = { getContext: vi.fn(() => { throw new Error('Must not probe'); }) };
   document.querySelectorAll = vi.fn(() => [unrelated]) as never;
@@ -215,17 +223,17 @@ it('exports rotated multiline text annotations in all plan formats', async()=>{
  expect(dxf).toContain('Saved <note>');expect(dxf).toContain('Second line');expect(dxf).toContain('TEXT_123456');
  expect(dxf).toMatch(/\n420\n1193046\n/);
 });
-it('includes saved dimension labels in PNG, SVG and DXF but not the PDF',async()=>{
+it('includes saved dimension labels in PNG, PDF, SVG and DXF',async()=>{
  const project=namedProject();project.floors[0].annotations=[{id:'dim',x1:-600,y1:-400,x2:-200,y2:-400,offset:-200,label:'Saved dimension'}];
  await exportAsPNG(null,project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('Saved dimension');
- canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).not.toContain('Saved dimension');
+ canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('Saved dimension');
  exportAsSVG(project);expect(await downloaded.at(-1)!.text()).toContain('Saved dimension');
  exportDXF(project);expect(await downloaded.at(-1)!.text()).toContain('Saved dimension');
 });
-it('exports standalone measurement labels in PNG, SVG and DXF (not the PDF) and frames outside endpoints',async()=>{
+it('exports standalone measurement labels in all formats and frames outside endpoints',async()=>{
  const project=namedProject();project.floors[0].measurements=[{id:'measure',x1:-1000,y1:-600,x2:-600,y2:-600}];
  await exportAsPNG(null,project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('4 m');expect(canvas.width).toBeGreaterThan(3000);
- canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).not.toContain('4 m');
+ canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('4 m');
  exportAsSVG(project);const svg=await downloaded.at(-1)!.text();expect(svg).toContain('4 m</text>');expect(svg).toContain('<circle');
  exportDXF(project);const dxf=await downloaded.at(-1)!.text();expect(dxf).toContain('MEASUREMENTS');expect(dxf).toContain('4 m');
 });
@@ -235,7 +243,7 @@ it.each([[304.8, "10'"], [23.8*2.54, "2'"]])('uses imperial units for a %s cm me
   projectSettings.set({...previous,units:'imperial'});
   const project=namedProject();project.floors[0].measurements=[{id:'feet',x1:0,y1:0,x2:length as number,y2:0}];
   await exportAsPNG(null,project);expect(canvasText.mock.calls.map(c=>c[0])).toContain(label);
-  canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).not.toContain(label);
+  canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).toContain(label);
   exportAsSVG(project);expect(await downloaded.at(-1)!.text()).toContain(String(label).replace("'", '&apos;')+'</text>');
   exportDXF(project);expect(await downloaded.at(-1)!.text()).toContain(label);
  } finally {projectSettings.set(previous);}

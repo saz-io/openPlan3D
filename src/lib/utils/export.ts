@@ -887,8 +887,10 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   ctx.save();
   for (const stair of floor.stairs ?? []) drawStair({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, stair, false);
   for (const column of floor.columns ?? []) drawColumn({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, column, false);
+  drawPersistedMeasurements({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, floor, null, get(projectSettings));
   ctx.restore();
-  // Dimension lines and wall length labels are intentionally left out of the PDF.
+  // Dimension lines you draw stay; the automatic wall length labels are left out of the PDF.
+  drawAnnotations({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, floor, null, get(projectSettings));
   drawTextAnnotations({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, floor, null, null);
 
   // Embed rendered plan into PDF
