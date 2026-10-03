@@ -12,6 +12,7 @@ export interface ProjectSettings {
   snapToGrid: boolean;                   // snap elements to grid when dragging
   snapToWalls: boolean;                  // snap furniture to nearby walls when dragging
   gridSize: number;                      // grid snap size in cm (default 25)
+  wallThickness: number;                 // thickness in cm for newly drawn walls (default 15)
 }
 
 const defaultSettings: ProjectSettings = {
@@ -26,6 +27,7 @@ const defaultSettings: ProjectSettings = {
   snapToGrid: true,
   snapToWalls: true,
   gridSize: 25,
+  wallThickness: 15,
 };
 
 // Load from localStorage if available

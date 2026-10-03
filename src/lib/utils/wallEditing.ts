@@ -64,6 +64,12 @@ export function planWallResize(walls: Wall[], id: string, length: number, fixed:
   return changes;
 }
 
+export const DEFAULT_WALL_THICKNESS = 15;
+export const MAX_WALL_THICKNESS = 100;
+/** Wall thickness in cm: positive, finite, and no more than one metre. */
+export function validWallThickness(value: unknown): value is number {
+  return validPositiveDimension(value) && value <= MAX_WALL_THICKNESS;
+}
 export function validPositiveDimension(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
