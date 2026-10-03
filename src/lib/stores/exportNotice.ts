@@ -15,7 +15,8 @@ export async function exportPDFWithFeedback(project: Project) {
     } else if (result.omitted3D) {
       exportNotice.set({ title: 'exportNotice.pdfPartial', message: 'exportNotice.pdfPartialHelp' });
     }
-  } catch {
+  } catch (error) {
+    console.error('PDF export failed', error);
     exportNotice.set({ title: 'exportNotice.pdfTitle', message: 'exportNotice.pdfFailed' });
   }
 }

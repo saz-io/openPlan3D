@@ -256,7 +256,8 @@ function mutate(fn: (floor: Floor) => void, description?: string, coalesceKey?: 
 export function addWall(start: Point, end: Point): string {
   const id = uid();
   mutate((f) => {
-    f.walls.push({ id, start, end, thickness: 15, height: 280, startHeight: 280, endHeight: 280, color: '#444444' });
+    // Plain copies: callers may pass reactive proxies, which structuredClone (used by exports) cannot copy.
+    f.walls.push({ id, start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y }, thickness: 15, height: 280, startHeight: 280, endHeight: 280, color: '#444444' });
   }, 'Added wall');
   if (typeof window !== 'undefined') {
     import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-wall', end.x > 400 ? 300 : end.x + 20, 120)).catch(() => {});
@@ -1245,6 +1246,16 @@ export function addTextAnnotation(x: number, y: number, text: string, fontSize =
   mutate(f => {
     if (!f.textAnnotations) f.textAnnotations = [];
     f.textAnnotations.push({ id, x, y, text, fontSize, color, rotation });
+  });
+  return id;
+}
+
+/** Adds a north-arrow compass; rotate it to point at true north. */
+export function addCompass(x: number, y: number): string {
+  const id = uid();
+  mutate(f => {
+    if (!f.textAnnotations) f.textAnnotations = [];
+    f.textAnnotations.push({ id, x, y, text: '▲\nN', fontSize: 28, color: '#1e293b', rotation: 0, kind: 'compass' });
   });
   return id;
 }

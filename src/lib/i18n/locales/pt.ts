@@ -549,6 +549,8 @@ export const pt = {
   "buildTools.annotate": "Anotar",
   "buildTools.text": "Rótulo de texto",
   "buildTools.textHelp": "Adicionar anotações de texto (T)",
+  "buildTools.compass": "Bússola",
+  "buildTools.compassHelp": "Adicionar seta do norte; gire para definir o norte",
   "buildTools.dimension": "Dimensão",
   "buildTools.dimensionHelp": "Adicionar anotações de dimensão (N)",
   "buildTools.measure": "Medir",
