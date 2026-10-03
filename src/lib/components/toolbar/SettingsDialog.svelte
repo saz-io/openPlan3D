@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { snapStepOptions } from '$lib/utils/drawnLength';
   import { locale, t, type Locale } from '$lib/i18n';
   import { modalDialog } from '$lib/utils/modalDialog';
   import { projectSettings } from '$lib/stores/settings';
@@ -81,6 +82,24 @@
   });
 
   onDestroy(projectSettings.subscribe((s) => { settings = { ...s }; }));
+
+  // Offer the presets for the current units, plus the current value if it is a custom one.
+  let snapSteps = $derived.by(() => {
+    const options = snapStepOptions(settings.units);
+    return options.some(option => Math.abs(option.cm - settings.gridSize) < 1e-6)
+      ? options
+      : [...options, { label: `${Math.round(settings.gridSize * 100) / 100} cm`, cm: settings.gridSize }].sort((a, b) => a.cm - b.cm);
+  });
+  let snapStepValue = $derived(settings.gridSize);
+
+  /** Switching units resets a preset snap step to the default for the new units (25 cm or 6"). */
+  function switchUnits(units: 'metric' | 'imperial') {
+    if (units === settings.units) return;
+    const wasPreset = snapStepOptions(settings.units).some(option => Math.abs(option.cm - settings.gridSize) < 1e-6);
+    settings.units = units;
+    if (wasPreset) settings.gridSize = snapStepOptions(units)[2].cm;
+    projectSettings.set({ ...settings });
+  }
 
   function updateSetting<K extends keyof ProjectSettings>(key: K, value: ProjectSettings[K]) {
     settings[key] = value;
@@ -173,6 +192,18 @@
                   before:content-[''] before:absolute before:w-4 before:h-4 before:rounded-full before:bg-white before:top-0.5 before:left-0.5 before:transition-transform checked:before:translate-x-5"
               />
             </label>
+            <label class="flex items-center justify-between px-4 py-3.5">
+              <span class="text-sm text-gray-700 dark:text-gray-300" title={$t('settings.snapStepHelp')}>{$t('settings.snapStep')}</span>
+              <select
+                value={String(snapStepValue)}
+                onchange={(e) => updateSetting('gridSize', Number((e.target as HTMLSelectElement).value))}
+                class="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-700"
+              >
+                {#each snapSteps as option (option.cm)}
+                  <option value={String(option.cm)}>{option.label}</option>
+                {/each}
+              </select>
+            </label>
           </div>
 
           <!-- Metrics Unit Toggle -->
@@ -181,11 +212,11 @@
             <div class="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
               <button
                 class="px-3 py-1.5 text-sm font-medium transition-colors {settings.units === 'metric' ? 'bg-slate-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}"
-                onclick={() => updateSetting('units', 'metric')}
+                onclick={() => switchUnits('metric')}
               >{$t('settings.metric')}</button>
               <button
                 class="px-3 py-1.5 text-sm font-medium transition-colors {settings.units === 'imperial' ? 'bg-slate-700 text-white' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'}"
-                onclick={() => updateSetting('units', 'imperial')}
+                onclick={() => switchUnits('imperial')}
               >{$t('settings.imperial')}</button>
             </div>
           </div>
