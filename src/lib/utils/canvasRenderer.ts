@@ -7,7 +7,8 @@ import { dimensionPlanGeometry } from './dimensionPlanGeometry';
  * All functions are pure — they take canvas context + data and render.
  * Extracted from FloorPlanCanvas.svelte.
  */
-import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, Floor, Annotation } from '$lib/models/types';
+import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, Floor, Annotation, TextAnnotation } from '$lib/models/types';
+import { compassShape } from './compassGeometry';
 import type { Room } from '$lib/models/types';
 import type { CanvasState } from '$lib/utils/canvasInteraction';
 import type { ProjectSettings } from '$lib/stores/settings';
@@ -1257,12 +1258,53 @@ export function drawPersistedMeasurements(cs: CanvasState, floor: Floor, selecte
 
 // ── Text annotations ─────────────────────────────────────────────────
 
+/** Compass object: star in a ring with N/S/E/W labels, rotated as a whole. */
+function drawCompass(ctx: CanvasRenderingContext2D, note: TextAnnotation, centre: Point, zoom: number, selected: boolean): void {
+  const shape = compassShape(note);
+  const colour = note.color || '#555555';
+  ctx.save();
+  ctx.translate(centre.x, centre.y);
+  if (note.rotation) ctx.rotate(note.rotation * Math.PI / 180);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(0.75, 0.9 * zoom * (note.fontSize / 12) * 0.5);
+  ctx.strokeStyle = colour;
+  for (const { points, shaded } of shape.triangles) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x * zoom, points[0].y * zoom);
+    ctx.lineTo(points[1].x * zoom, points[1].y * zoom);
+    ctx.lineTo(points[2].x * zoom, points[2].y * zoom);
+    ctx.closePath();
+    ctx.fillStyle = shaded ? '#969696' : '#ffffff';
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, shape.ringRadius * zoom, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = colour;
+  ctx.font = `bold ${shape.labelSize * zoom}px sans-serif`;
+  ctx.textBaseline = 'middle';
+  for (const label of shape.labels) {
+    ctx.textAlign = label.anchor === 'middle' ? 'center' : label.anchor === 'start' ? 'left' : 'right';
+    ctx.fillText(label.text, label.x * zoom, label.y * zoom);
+  }
+  if (selected) {
+    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.arc(0, 0, shape.radius * zoom + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
 export function drawTextAnnotations(cs: CanvasState, floor: Floor, selectedTextAnnotationId: string | null, currentSelectedId: string | null): void {
   if (!floor.textAnnotations) return;
   const { ctx, zoom } = cs;
   for (const ta of floor.textAnnotations) {
     const selected = ta.id === selectedTextAnnotationId || ta.id === currentSelectedId;
     const s = wts(cs, ta.x, ta.y);
+    if (ta.kind === 'compass') { drawCompass(ctx, ta, s, zoom, selected); continue; }
     const fontSize = Math.max(8, ta.fontSize * zoom);
     ctx.save();
     ctx.translate(s.x, s.y);

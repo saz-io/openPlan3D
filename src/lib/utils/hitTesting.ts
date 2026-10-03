@@ -1,4 +1,5 @@
 import { stairContainsLocalPoint } from './stairPlanGeometry';
+import { compassShape } from './compassGeometry';
 import { roomHoles } from './roomNesting';
 /**
  * Hit-testing utilities for the floor plan canvas.
@@ -273,6 +274,10 @@ export function hitTestTextAnnotation(wp: Point, floor: Floor, ctx: CanvasRender
     const ta = floor.textAnnotations[i];
     let dx = wp.x - ta.x;
     let dy = wp.y - ta.y;
+    if (ta.kind === 'compass') {
+      if (Math.hypot(dx, dy) <= compassShape(ta).radius + 4 / zoom) return ta.id;
+      continue;
+    }
     if (ta.rotation) {
       const angle = -ta.rotation * Math.PI / 180;
       const rx = dx * Math.cos(angle) - dy * Math.sin(angle);

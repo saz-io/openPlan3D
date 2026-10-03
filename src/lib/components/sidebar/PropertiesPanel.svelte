@@ -19,7 +19,7 @@
   import { floorMaterials, wallColors } from '$lib/utils/materials';
   import { getCatalogItem } from '$lib/utils/furnitureCatalog';
   import { projectSettings, formatLength, formatArea, parseLengthInput } from '$lib/stores/settings';
-    import { compassLabel, compassText } from '$lib/utils/compassText';
+    import { compassLabels, compassText } from '$lib/utils/compassText';
     import type { Floor, Wall, Door, Window as Win, Room, FurnitureItem, Stair, Column, RoomCategory, TextAnnotation } from '$lib/models/types';
   import { getWallStartHeight, getWallEndHeight } from '$lib/models/types';
 
@@ -983,10 +983,13 @@
         {$t('annotationProperties.heading')}
       </h3>
       {#if selectedTextAnnotation.kind === 'compass'}
-        <label class="block">
-          <span class="text-xs text-gray-500">{$t('annotationProperties.northLabel')}</span>
-          <input type="text" value={compassLabel(selectedTextAnnotation.text)} maxlength="12" oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { text: compassText((e.target as HTMLInputElement).value) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
-        </label>
+        {@const labels = compassLabels(selectedTextAnnotation.text)}
+        {#each [['north', 'annotationProperties.northLabel'], ['south', 'annotationProperties.southLabel'], ['east', 'annotationProperties.eastLabel'], ['west', 'annotationProperties.westLabel']] as [side, key] (side)}
+          <label class="block">
+            <span class="text-xs text-gray-500">{$t(key as TranslationKey)}</span>
+            <input type="text" value={labels[side as keyof typeof labels]} maxlength="12" oninput={(e) => updateTextAnnotation(selectedTextAnnotation!.id, { text: compassText({ ...labels, [side]: (e.target as HTMLInputElement).value }) })} class="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+          </label>
+        {/each}
       {:else}
       <label class="block">
         <span class="text-xs text-gray-500">{$t('annotationProperties.text')}</span>

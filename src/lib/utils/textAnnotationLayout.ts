@@ -1,4 +1,5 @@
 import type { TextAnnotation } from '$lib/models/types';
+import { compassShape } from './compassGeometry';
 export function textAnnotationLines(note: TextAnnotation) {
   const fontSize = Math.max(8, note.fontSize), lines = note.text.split('\n');
   const lineHeight = fontSize * 1.2;
@@ -6,6 +7,10 @@ export function textAnnotationLines(note: TextAnnotation) {
 }
 
 export function textAnnotationBounds(note: TextAnnotation, ctx: CanvasRenderingContext2D, zoom = 1) {
+  if (note.kind === 'compass') {
+    const { radius } = compassShape(note);
+    return { minX: note.x - radius, maxX: note.x + radius, minY: note.y - radius, maxY: note.y + radius };
+  }
   const { fontSize, lines } = textAnnotationLines({ ...note, fontSize: note.fontSize * zoom });
   ctx.font = `${fontSize}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const angle = note.rotation * Math.PI / 180, cosine = Math.cos(angle), sine = Math.sin(angle);

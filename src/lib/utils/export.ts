@@ -9,6 +9,7 @@ import { columnPlanBounds } from './columnPlanGeometry';
 import { hasPlanExportContent } from './planExportContent';
 import { dimensionPlanGeometry } from './dimensionPlanGeometry';
 import { textAnnotationBounds, textAnnotationLines } from './textAnnotationLayout';
+import { compassShape, compassPoint } from './compassGeometry';
 import { canvasSymbolSvg } from './canvasSymbolSvg';
 import { furnitureSvg } from './furnitureSvg';
 import { furniturePlanBounds } from './furniturePlanBounds';
@@ -626,6 +627,17 @@ export function exportAsSVG(project: Project, language: Locale = 'en') {
       const tx = ta.x - minX + pad;
       const ty = ta.y - minY + pad;
       const transform = ta.rotation ? ` transform="rotate(${ta.rotation} ${tx} ${ty})"` : '';
+      if (ta.kind === 'compass') {
+        const shape = compassShape(ta), colour = escapeXml(ta.color || '#555555');
+        const at = (p: { x: number; y: number }) => `${tx + p.x},${ty + p.y}`;
+        paths += `  <g${transform} stroke="${colour}" stroke-width="0.6" stroke-linejoin="round">\n`;
+        for (const { points, shaded } of shape.triangles) paths += `    <polygon points="${points.map(at).join(' ')}" fill="${shaded ? '#969696' : '#ffffff'}"/>\n`;
+        paths += `    <circle cx="${tx}" cy="${ty}" r="${shape.ringRadius}" fill="none"/>\n  </g>\n`;
+        for (const label of shape.labels) {
+          paths += `  <text x="${tx + label.x}" y="${ty + label.y}" text-anchor="${label.anchor}" dominant-baseline="central" font-size="${shape.labelSize}" font-weight="bold" fill="${colour}" font-family="sans-serif"${transform}>${escapeXml(label.text)}</text>\n`;
+        }
+        continue;
+      }
       const { fontSize, lines } = textAnnotationLines(ta);
       paths += `  <text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize}" fill="${escapeXml(ta.color || '#1e293b')}" font-family="sans-serif" xml:space="preserve"${transform}>${lines.map(line => `<tspan x="${tx}" y="${ty + line.y}">${escapeXml(line.text)}</tspan>`).join('')}</text>\n`;
     }
@@ -711,32 +723,6 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     // inner border
     pdf.setLineWidth(0.15);
     pdf.rect(margin + 1, margin + 1, pw - margin * 2 - 2, ph - margin * 2 - 2);
-  }
-
-  // Four-pointed compass star inside a ring, with N/S/E/W labels; plan north is up the page.
-  function drawCompass(cx: number, cy: number) {
-    const long = 11, short = 8, half = 1.5, ring = 4.2;
-    const arms: Array<[number, number, number]> = [[0, -1, long], [1, 0, short], [0, 1, long], [-1, 0, short]];
-    pdf.setDrawColor(70);
-    pdf.setLineWidth(0.2);
-    for (const [ux, uy, len] of arms) {
-      const px = -uy, py = ux;
-      const tip = [cx + ux * len, cy + uy * len];
-      // One half of each point is shaded to give the star some depth.
-      pdf.setFillColor(150, 150, 150);
-      pdf.triangle(tip[0], tip[1], cx, cy, cx + px * half, cy + py * half, 'FD');
-      pdf.setFillColor(255, 255, 255);
-      pdf.triangle(tip[0], tip[1], cx, cy, cx - px * half, cy - py * half, 'FD');
-    }
-    pdf.circle(cx, cy, ring, 'S');
-    pdf.setTextColor(110, 110, 110);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.text('N', cx, cy - long - 2, { align: 'center' });
-    pdf.text('S', cx, cy + long + 5.5, { align: 'center' });
-    pdf.text('W', cx - short - 2, cy + 1.5, { align: 'right' });
-    pdf.text('E', cx + short + 2, cy + 1.5, { align: 'left' });
-    pdf.setTextColor(40);
   }
 
   function drawTitleBlock() {
@@ -905,8 +891,6 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   const imgY = margin + 2 + (drawAreaH - imgH) / 2;
   pdf.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
 
-  // The fixed corner compass is a fallback; a placed compass object replaces it.
-  if (!floor.textAnnotations?.some(note => note.kind === 'compass')) drawCompass(pw - margin - 22, margin + 24);
   drawTitleBlock();
 
   let omitted3D = Boolean(capture);

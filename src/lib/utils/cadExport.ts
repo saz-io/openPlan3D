@@ -8,6 +8,7 @@ import { columnPlanCorners } from './columnPlanGeometry';
 import { hasPlanExportContent } from './planExportContent';
 import { dimensionPlanGeometry } from './dimensionPlanGeometry';
 import { textAnnotationLines } from './textAnnotationLayout';
+import { compassShape, compassPoint } from './compassGeometry';
 import { planOpening } from './planOpening';
 import { planWallOutlines } from './planWallOutline';
 import Drawing from 'dxf-writer';
@@ -83,6 +84,19 @@ export function exportDXF(project: Project, language: Locale = 'en') {
     const layer = `TEXT_${hex.toUpperCase()}`;
     if (!textLayers.has(layer)) { d.addLayer(layer, 7, 'CONTINUOUS'); textLayers.add(layer); }
     d.setActiveLayer(layer); d.setTrueColor(parseInt(hex, 16));
+    if (note.kind === 'compass') {
+      const shape = compassShape(note);
+      for (const { points } of shape.triangles) {
+        const outline = points.map(p => compassPoint(note, p));
+        d.drawPolyline([...outline, outline[0]].map(p => [p.x, -p.y]));
+      }
+      d.drawCircle(note.x, -note.y, shape.ringRadius);
+      for (const label of shape.labels) {
+        const at = compassPoint(note, label);
+        d.drawText(at.x, -at.y, shape.labelSize, -note.rotation, label.text, label.anchor === 'middle' ? 'center' : label.anchor === 'start' ? 'left' : 'right', 'middle');
+      }
+      continue;
+    }
     const { fontSize, lines } = textAnnotationLines(note), angle = note.rotation * Math.PI / 180;
     for (const line of lines) {
       if (line.text) d.drawText(note.x - line.y * Math.sin(angle), -(note.y + line.y * Math.cos(angle)), fontSize, -note.rotation, line.text, 'center', 'middle');
