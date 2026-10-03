@@ -168,7 +168,7 @@
     units: 'metric', showDimensions: true, showExternalDimensions: true,
     showInternalDimensions: false, showExtensionLines: true,
     showObjectDistance: true, dimensionLineColor: '#1e293b',
-    wallMeasureMode: 'centerline', snapToGrid: true, snapToWalls: true, gridSize: 25,
+    wallMeasureMode: 'centerline', snapToGrid: true, snapToWalls: true, gridSize: 25, wallThickness: 15,
   });
   onDestroy(projectSettings.subscribe((s) => {
     dimSettings = s;

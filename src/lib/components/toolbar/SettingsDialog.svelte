@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { snapStepOptions } from '$lib/utils/drawnLength';
+  import { validWallThickness } from '$lib/utils/wallEditing';
+  import { setAllWallThickness } from '$lib/stores/project';
   import { locale, t, type Locale } from '$lib/i18n';
   import { modalDialog } from '$lib/utils/modalDialog';
   import { projectSettings } from '$lib/stores/settings';
@@ -79,6 +81,7 @@
     snapToGrid: true,
     snapToWalls: true,
     gridSize: 25,
+    wallThickness: 15,
   });
 
   onDestroy(projectSettings.subscribe((s) => { settings = { ...s }; }));
@@ -99,6 +102,28 @@
     settings.units = units;
     if (wasPreset) settings.gridSize = snapStepOptions(units)[2].cm;
     projectSettings.set({ ...settings });
+  }
+
+  // Wall thickness is stored in cm and shown in cm (metric) or inches (imperial).
+  let thicknessError = $state<string | null>(null);
+  let thicknessApplied = $state<string | null>(null);
+  const thicknessDisplay = (cm: number) => Math.round((settings.units === 'imperial' ? cm / 2.54 : cm) * 100) / 100;
+  function onWallThicknessInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const cm = input.valueAsNumber * (settings.units === 'imperial' ? 2.54 : 1);
+    thicknessApplied = null;
+    if (!input.value.trim() || !validWallThickness(cm)) {
+      thicknessError = $t('settings.wallThicknessInvalid');
+      input.value = String(thicknessDisplay(settings.wallThickness));
+      return;
+    }
+    thicknessError = null;
+    updateSetting('wallThickness', cm);
+  }
+  function applyThicknessToAll() {
+    thicknessError = null;
+    const changed = setAllWallThickness(settings.wallThickness);
+    thicknessApplied = $t('settings.wallThicknessApplied', { count: changed });
   }
 
   function updateSetting<K extends keyof ProjectSettings>(key: K, value: ProjectSettings[K]) {
@@ -234,6 +259,32 @@
                 onclick={() => updateSetting('wallMeasureMode', 'edge')}
               >{$t('settings.edgeToEdge')}</button>
             </div>
+          </div>
+
+          <!-- Default wall thickness for new walls, with a way to apply it to existing ones -->
+          <div class="mb-5">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300" title={$t('settings.wallThicknessHelp')}>{$t('settings.wallThickness')}</span>
+              <span class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
+                <input
+                  type="number" min="0" step="any" inputmode="decimal"
+                  aria-label={$t('settings.wallThickness')}
+                  value={thicknessDisplay(settings.wallThickness)}
+                  onchange={onWallThicknessInput}
+                  class="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-700"
+                />
+                <span>{settings.units === 'imperial' ? 'in' : 'cm'}</span>
+              </span>
+            </div>
+            {#if thicknessError}<p role="alert" class="mt-1 text-xs text-red-700">{thicknessError}</p>{/if}
+            <div class="mt-2 flex items-center justify-between gap-3">
+              <span class="text-xs text-gray-400">{$t('settings.wallThicknessHelp')}</span>
+              <button
+                class="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                onclick={applyThicknessToAll}
+              >{$t('settings.wallThicknessApply')}</button>
+            </div>
+            {#if thicknessApplied}<p role="status" class="mt-1 text-xs text-gray-500">{thicknessApplied}</p>{/if}
           </div>
 
           <!-- Toggle options -->

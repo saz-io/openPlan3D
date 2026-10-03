@@ -5,8 +5,9 @@ import { splitWallGeometry } from '$lib/utils/splitWallGeometry';
 import { wallPathProfile } from '$lib/utils/wallProfiles';
 import { duplicatePlanSelection, pastePlanSelection } from '$lib/utils/duplicateSelection';
 import { writable, derived, get } from 'svelte/store';
+import { projectSettings } from '$lib/stores/settings';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem } from '$lib/models/types';
-import { planWallResize, finitePoint, validPositiveDimension, validOpeningPosition, type WallEndpoint } from '$lib/utils/wallEditing';
+import { planWallResize, finitePoint, validPositiveDimension, validOpeningPosition, validWallThickness, DEFAULT_WALL_THICKNESS, type WallEndpoint } from '$lib/utils/wallEditing';
 import { getOuterWalls } from '$lib/utils/outerWalls';
 import { nextFloorLevel, floorElevations, validFloorElevation, DEFAULT_FLOOR_SPACING } from '$lib/utils/floors';
 import { getWallStartHeight, getWallEndHeight, getWallHeightAt, validWallHeight } from '$lib/models/types';
@@ -258,14 +259,29 @@ function mutate(fn: (floor: Floor) => void, description?: string, coalesceKey?: 
 
 export function addWall(start: Point, end: Point): string {
   const id = uid();
+  const configured = get(projectSettings).wallThickness;
+  const thickness = validWallThickness(configured) ? configured : DEFAULT_WALL_THICKNESS;
   mutate((f) => {
     // Plain copies: callers may pass reactive proxies, which structuredClone (used by exports) cannot copy.
-    f.walls.push({ id, start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y }, thickness: 15, height: 280, startHeight: 280, endHeight: 280, color: '#444444' });
+    f.walls.push({ id, start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y }, thickness, height: 280, startHeight: 280, endHeight: 280, color: '#444444' });
   }, 'Added wall');
   if (typeof window !== 'undefined') {
     import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-wall', end.x > 400 ? 300 : end.x + 20, 120)).catch(() => {});
   }
   return id;
+}
+
+/** Sets every wall on every floor to one thickness (cm) as a single undo step; returns how many changed. */
+export function setAllWallThickness(thickness: number): number {
+  const p = get(currentProject);
+  if (!p || !validWallThickness(thickness)) return 0;
+  const changed = p.floors.flatMap(floor => floor.walls).filter(wall => wall.thickness !== thickness);
+  if (!changed.length) return 0;
+  snapshot('Set thickness of all walls');
+  for (const wall of changed) wall.thickness = thickness;
+  p.updatedAt = new Date();
+  currentProject.set({ ...p });
+  return changed.length;
 }
 
 export function removeWall(id: string) {
