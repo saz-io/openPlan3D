@@ -91,17 +91,19 @@ it('uses the saved name when drawing the PNG export', async () => {
   expect(canvasText.mock.calls.map(call => call[0])).toContain('Kitchen & Dining <East>');
 });
 
-it('uses saved names and distinct textures for same-name rooms in the PDF schedule', async () => {
+it('draws saved room names on the PDF plan and adds no room schedule', async () => {
   const project = roomProject();
   const floor = project.floors[0];
   floor.walls.push(...rectangleWalls('b', 600));
   floor.rooms = resolveRooms(floor).map((room, i) => ({ ...room, name: 'Bedroom', floorTexture: i ? 'tile' : 'carpet' }));
   await exportPDF(project);
+  const planText = canvasText.mock.calls.map(call => call[0]);
+  expect(planText.filter(value => value === 'Bedroom')).toHaveLength(2);
+  expect(planText).not.toContain('Room 1');
   const text = pdfText.mock.calls.map(call => call[0]);
-  expect(text.filter(value => value === 'Bedroom')).toHaveLength(2);
-  expect(text).toContain('carpet');
-  expect(text).toContain('tile');
-  expect(text).not.toContain('Room 1');
+  expect(text).not.toContain('Room Schedule');
+  expect(text).not.toContain('carpet');
+  expect(text).not.toContain('TOTAL');
   expect(pdfSave).toHaveBeenCalledOnce();
 });
 
@@ -163,18 +165,15 @@ it('draws curved wall paths in SVG and raster exports rather than endpoint chord
   expect((dxf.match(/\nLWPOLYLINE\n/g) ?? []).length).toBe(4); // one joined curve outline + 3 straight walls
 });
 
-it('keeps large room schedules above the title block and repeats headings', async () => {
+it('keeps large plans on one page without a room schedule', async () => {
   const project = benchmarkProject('large'), floor = project.floors[0], extra = project.floors[1];
   extra.walls.forEach(w => { w.start.x += 2200; w.end.x += 2200; });
   floor.walls.push(...extra.walls); floor.rooms.push(...extra.rooms);
   floor.rooms.forEach((room, i) => { room.name = `Suite ${i + 1}`; });
   await exportPDF(project);
-  const rows = pdfText.mock.calls.filter(call => /^Suite /.test(call[0]));
-  expect(rows).toHaveLength(32);
-  expect(rows.every(call => call[2] >= 38 && call[2] < 174)).toBe(true);
-  expect(pdfText.mock.calls.filter(call => call[0] === 'Room Schedule')).toHaveLength(3);
-  const total = pdfText.mock.calls.find(call => call[0] === 'TOTAL')!;
-  expect(total[2]).toBeLessThan(174);
+  expect(pdfText.mock.calls.some(call => /^Suite /.test(call[0]))).toBe(false);
+  expect(pdfText.mock.calls.some(call => call[0] === 'Room Schedule' || call[0] === 'TOTAL')).toBe(false);
+  expect(pdfSave).toHaveBeenCalledOnce();
 });
 
 it('does not probe unrelated canvases when exporting the optional 3D page', async () => {
@@ -216,17 +215,17 @@ it('exports rotated multiline text annotations in all plan formats', async()=>{
  expect(dxf).toContain('Saved <note>');expect(dxf).toContain('Second line');expect(dxf).toContain('TEXT_123456');
  expect(dxf).toMatch(/\n420\n1193046\n/);
 });
-it('includes saved dimension labels in PNG, PDF, SVG and DXF',async()=>{
+it('includes saved dimension labels in PNG, SVG and DXF but not the PDF',async()=>{
  const project=namedProject();project.floors[0].annotations=[{id:'dim',x1:-600,y1:-400,x2:-200,y2:-400,offset:-200,label:'Saved dimension'}];
  await exportAsPNG(null,project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('Saved dimension');
- canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('Saved dimension');
+ canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).not.toContain('Saved dimension');
  exportAsSVG(project);expect(await downloaded.at(-1)!.text()).toContain('Saved dimension');
  exportDXF(project);expect(await downloaded.at(-1)!.text()).toContain('Saved dimension');
 });
-it('exports standalone measurement labels in all formats and frames outside endpoints',async()=>{
+it('exports standalone measurement labels in PNG, SVG and DXF (not the PDF) and frames outside endpoints',async()=>{
  const project=namedProject();project.floors[0].measurements=[{id:'measure',x1:-1000,y1:-600,x2:-600,y2:-600}];
  await exportAsPNG(null,project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('4 m');expect(canvas.width).toBeGreaterThan(3000);
- canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).toContain('4 m');
+ canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).not.toContain('4 m');
  exportAsSVG(project);const svg=await downloaded.at(-1)!.text();expect(svg).toContain('4 m</text>');expect(svg).toContain('<circle');
  exportDXF(project);const dxf=await downloaded.at(-1)!.text();expect(dxf).toContain('MEASUREMENTS');expect(dxf).toContain('4 m');
 });
@@ -236,7 +235,7 @@ it.each([[304.8, "10'"], [23.8*2.54, "2'"]])('uses imperial units for a %s cm me
   projectSettings.set({...previous,units:'imperial'});
   const project=namedProject();project.floors[0].measurements=[{id:'feet',x1:0,y1:0,x2:length as number,y2:0}];
   await exportAsPNG(null,project);expect(canvasText.mock.calls.map(c=>c[0])).toContain(label);
-  canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).toContain(label);
+  canvasText.mockClear();await exportPDF(project);expect(canvasText.mock.calls.map(c=>c[0])).not.toContain(label);
   exportAsSVG(project);expect(await downloaded.at(-1)!.text()).toContain(String(label).replace("'", '&apos;')+'</text>');
   exportDXF(project);expect(await downloaded.at(-1)!.text()).toContain(label);
  } finally {projectSettings.set(previous);}
