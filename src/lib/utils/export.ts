@@ -713,24 +713,30 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     pdf.rect(margin + 1, margin + 1, pw - margin * 2 - 2, ph - margin * 2 - 2);
   }
 
-  // North arrow with N/S labels; plan north is up the page.
+  // Four-pointed compass star inside a ring, with N/S/E/W labels; plan north is up the page.
   function drawCompass(cx: number, cy: number) {
-    const r = 9;
-    pdf.setDrawColor(40);
-    pdf.setFillColor(40, 40, 40);
-    pdf.setLineWidth(0.3);
-    pdf.circle(cx, cy, r);
-    pdf.line(cx, cy - r, cx, cy + r);
-    pdf.line(cx - r, cy, cx + r, cy);
-    pdf.triangle(cx, cy - r + 1, cx - 2.5, cy + 1, cx + 2.5, cy + 1, 'F');
-    pdf.setTextColor(40);
+    const long = 11, short = 8, half = 1.5, ring = 4.2;
+    const arms: Array<[number, number, number]> = [[0, -1, long], [1, 0, short], [0, 1, long], [-1, 0, short]];
+    pdf.setDrawColor(70);
+    pdf.setLineWidth(0.2);
+    for (const [ux, uy, len] of arms) {
+      const px = -uy, py = ux;
+      const tip = [cx + ux * len, cy + uy * len];
+      // One half of each point is shaded to give the star some depth.
+      pdf.setFillColor(150, 150, 150);
+      pdf.triangle(tip[0], tip[1], cx, cy, cx + px * half, cy + py * half, 'FD');
+      pdf.setFillColor(255, 255, 255);
+      pdf.triangle(tip[0], tip[1], cx, cy, cx - px * half, cy - py * half, 'FD');
+    }
+    pdf.circle(cx, cy, ring, 'S');
+    pdf.setTextColor(110, 110, 110);
     pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9);
-    pdf.text('N', cx, cy - r - 1.5, { align: 'center' });
-    pdf.text('S', cx, cy + r + 4, { align: 'center' });
-    pdf.setFontSize(7);
-    pdf.text('E', cx + r + 1.5, cy + 1, { align: 'left' });
-    pdf.text('W', cx - r - 1.5, cy + 1, { align: 'right' });
+    pdf.setFontSize(11);
+    pdf.text('N', cx, cy - long - 2, { align: 'center' });
+    pdf.text('S', cx, cy + long + 5.5, { align: 'center' });
+    pdf.text('W', cx - short - 2, cy + 1.5, { align: 'right' });
+    pdf.text('E', cx + short + 2, cy + 1.5, { align: 'left' });
+    pdf.setTextColor(40);
   }
 
   function drawTitleBlock() {
@@ -739,37 +745,52 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     pdf.setDrawColor(40);
     pdf.setLineWidth(0.4);
     pdf.rect(margin, tbY, tbW, titleBlockH);
-    // vertical dividers
-    const col1 = margin + tbW * 0.45;
-    const col2 = margin + tbW * 0.7;
+    const col1 = margin + tbW * 0.55;
+    const col2 = margin + tbW * 0.78;
     pdf.line(col1, tbY, col1, tbY + titleBlockH);
     pdf.line(col2, tbY, col2, tbY + titleBlockH);
 
-    // Project name
-    pdf.setFontSize(12);
+    const label = (text: string, x: number) => {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(6);
+      pdf.setTextColor(130);
+      pdf.text(text, x, tbY + 5);
+    };
+
+    // Project: name, floor and description
+    label('PROJECT', margin + 5);
+    pdf.setTextColor(30);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(project.name || 'Untitled Project', margin + 4, tbY + 9);
-    pdf.setFontSize(8);
+    pdf.setFontSize(15);
+    const nameLines: string[] = pdf.splitTextToSize(project.name || 'Untitled Project', col1 - margin - 10);
+    pdf.text(nameLines[0], margin + 5, tbY + 12);
     pdf.setFont('helvetica', 'normal');
-    pdf.text(floor.name, margin + 4, tbY + 15);
-    if (project.description) {
-      pdf.setFontSize(7);
-      pdf.text(project.description.substring(0, 60), margin + 4, tbY + 19);
-    }
-
-    // Date / scale
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    pdf.setFontSize(8);
-    pdf.text(`Date: ${today}`, col1 + 4, tbY + 9);
-    pdf.text(`Units: ${settings.units}`, col1 + 4, tbY + 15);
-
-    // Branding
     pdf.setFontSize(9);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text(designerName, col2 + 4, tbY + 9);
+    pdf.setTextColor(90);
+    const sub = [floor.name, project.description?.trim()].filter(Boolean).join('  ·  ');
+    const subLines: string[] = pdf.splitTextToSize(sub, col1 - margin - 10);
+    pdf.text(subLines[0], margin + 5, tbY + 18);
+
+    // Date
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    label('DATE', col1 + 5);
+    pdf.setTextColor(30);
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7);
-    if (creditLine) pdf.text(creditLine, col2 + 4, tbY + 15);
+    pdf.setFontSize(10);
+    pdf.text(today, col1 + 5, tbY + 12);
+
+    // Name and credit line
+    pdf.setTextColor(30);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(12);
+    pdf.text(designerName, col2 + 5, tbY + 12);
+    if (creditLine) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(90);
+      pdf.text(creditLine, col2 + 5, tbY + 18);
+    }
+    pdf.setTextColor(40);
   }
 
   // ── Page 1: Floor Plan ──
@@ -849,13 +870,6 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     if (wall.curvePoint) ctx.quadraticCurveTo(wall.curvePoint.x - minX + pad, wall.curvePoint.y - minY + pad, wall.end.x - minX + pad, wall.end.y - minY + pad);
         else ctx.lineTo(wall.end.x - minX + pad, wall.end.y - minY + pad);
     ctx.stroke();
-    const { length: len, point: midpoint } = wallPlanDimension(wall);
-    const mx = midpoint.x - minX + pad;
-    const my = midpoint.y - minY + pad;
-    ctx.fillStyle = '#666';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${len} cm`, mx, my);
   }
 
   // Entourage symbols
@@ -873,9 +887,8 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   ctx.save();
   for (const stair of floor.stairs ?? []) drawStair({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, stair, false);
   for (const column of floor.columns ?? []) drawColumn({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, column, false);
-  drawPersistedMeasurements({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, floor, null, get(projectSettings));
   ctx.restore();
-  drawAnnotations({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, floor, null, get(projectSettings));
+  // Dimension lines and wall length labels are intentionally left out of the PDF.
   drawTextAnnotations({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, floor, null, null);
 
   // Embed rendered plan into PDF
@@ -891,84 +904,8 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   pdf.addImage(imgData, 'PNG', imgX, imgY, imgW, imgH);
 
   // The fixed corner compass is a fallback; a placed compass object replaces it.
-  if (!floor.textAnnotations?.some(note => note.kind === 'compass')) drawCompass(pw - margin - 16, margin + 18);
+  if (!floor.textAnnotations?.some(note => note.kind === 'compass')) drawCompass(pw - margin - 22, margin + 24);
   drawTitleBlock();
-
-  // Room schedule: repeat headings and reserve the title block on every page.
-  if (rooms.length > 0) {
-    const tX = margin + 6;
-    const colWidths = [12, 70, 45, 55, 65];
-    const headers = ['#', 'Room Name', 'Type', 'Area', 'Floor Texture'];
-    const tableW = colWidths.reduce((a, b) => a + b, 0);
-    const bottom = ph - margin - titleBlockH - 4;
-    let tY = 0;
-    const beginSchedulePage = () => {
-      pdf.addPage('a4', 'landscape');
-      drawPageBorder();
-      drawTitleBlock();
-      pdf.setTextColor(40);
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Room Schedule', tX, margin + 12);
-      tY = margin + 20;
-      pdf.setFillColor(50, 50, 60);
-      pdf.rect(tX, tY, tableW, 8, 'F');
-      pdf.setTextColor(255);
-      pdf.setFontSize(9);
-      let x = tX;
-      headers.forEach((header, i) => { pdf.text(header, x + 3, tY + 5.5); x += colWidths[i]; });
-      tY += 8;
-      pdf.setTextColor(40);
-      pdf.setFont('helvetica', 'normal');
-    };
-    beginSchedulePage();
-    let totalArea = 0;
-    for (let ri = 0; ri < rooms.length; ri++) {
-      const room = rooms[ri];
-      totalArea += room.area;
-      const values = [String(ri + 1), room.name, room.roomType || 'indoor',
-        formatArea(room.area, settings.units), room.floorTexture || '-'];
-      const cells: string[][] = values.map((value, i) => pdf.splitTextToSize(value, colWidths[i] - 6));
-      const lineCount = Math.max(1, ...cells.map(cell => cell.length));
-      let offset = 0;
-      while (offset < lineCount) {
-        // Four millimetres per line plus four millimetres of row padding.
-        let capacity = Math.floor((bottom - tY - 4) / 4);
-        const remaining = lineCount - offset;
-        const fullPageCapacity = Math.floor((bottom - (margin + 28) - 4) / 4);
-        if (capacity < 1 || (remaining > capacity && remaining <= fullPageCapacity)) {
-          beginSchedulePage();
-          capacity = fullPageCapacity;
-        }
-        const count = Math.min(remaining, capacity), height = count * 4 + 4;
-        if (ri % 2 === 0) {
-          pdf.setFillColor(245, 245, 250);
-          pdf.rect(tX, tY, tableW, height, 'F');
-        }
-        pdf.setDrawColor(200);
-        pdf.setLineWidth(0.15);
-        pdf.rect(tX, tY, tableW, height);
-        let x = tX;
-        cells.forEach((cell, i) => {
-          cell.slice(offset, offset + count).forEach((line, li) => pdf.text(line, x + 3, tY + 5 + li * 4));
-          x += colWidths[i];
-        });
-        tY += height;
-        offset += count;
-      }
-    }
-    // Keep the total and summary together, clear of the footer.
-    if (tY + 22 > bottom) beginSchedulePage();
-    pdf.setFillColor(50, 50, 60);
-    pdf.rect(tX, tY, tableW, 8, 'F');
-    pdf.setTextColor(255);
-    pdf.setFont('helvetica', 'bold');
-    pdf.text('TOTAL', tX + colWidths[0] + 3, tY + 5.5);
-    pdf.text(formatArea(totalArea, settings.units), tX + colWidths[0] + colWidths[1] + colWidths[2] + 3, tY + 5.5);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(80);
-    pdf.text(`${rooms.length} rooms  ·  ${floor.walls.length} walls  ·  ${floor.doors.length} doors  ·  ${floor.windows.length} windows  ·  ${floor.furniture.length} furniture items`, tX, tY + 18);
-  }
 
   let omitted3D = Boolean(capture);
   if (capture?.image && capture.width > 10 && capture.height > 10) {
