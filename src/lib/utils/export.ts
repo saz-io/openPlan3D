@@ -665,17 +665,24 @@ export async function exportPDF(project: Project) {
 }
 
 const DESIGNER_KEY = 'floorplan.designerName';
+const CREDIT_KEY = 'floorplan.creditLine';
 const DEFAULT_DESIGNER = 'saz';
 
-function getDesignerName(): string {
+/** Asks for the title-block name and the line under it; answers are remembered in the browser. */
+function getPdfCredits(): { name: string; credit: string } {
   try {
-    const stored = localStorage.getItem(DESIGNER_KEY) ?? DEFAULT_DESIGNER;
-    const entered = typeof window !== 'undefined' ? window.prompt('Name to show on the PDF:', stored) : null;
-    const name = (entered ?? stored).trim() || DEFAULT_DESIGNER;
-    localStorage.setItem(DESIGNER_KEY, name);
-    return name;
+    const ask = (message: string, key: string, fallback: string) => {
+      const stored = localStorage.getItem(key) ?? fallback;
+      const entered = typeof window !== 'undefined' ? window.prompt(message, stored) : null;
+      const value = (entered ?? stored).trim();
+      localStorage.setItem(key, value);
+      return value;
+    };
+    const name = ask('Name to show on the PDF:', DESIGNER_KEY, DEFAULT_DESIGNER) || DEFAULT_DESIGNER;
+    const credit = ask('Line under the name (leave empty for none):', CREDIT_KEY, `Created by ${name}`);
+    return { name, credit };
   } catch {
-    return DEFAULT_DESIGNER;
+    return { name: DEFAULT_DESIGNER, credit: `Created by ${DEFAULT_DESIGNER}` };
   }
 }
 
@@ -689,7 +696,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   if (!hasPlanExportContent(floor) && !entourage.length) return;
 
   const settings = get(projectSettings);
-  const designerName = getDesignerName();
+  const { name: designerName, credit: creditLine } = getPdfCredits();
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pw = pdf.internal.pageSize.getWidth();   // ~297
   const ph = pdf.internal.pageSize.getHeight();   // ~210
@@ -762,7 +769,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     pdf.text(designerName, col2 + 4, tbY + 9);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7);
-    pdf.text(`Created by ${designerName}`, col2 + 4, tbY + 15);
+    if (creditLine) pdf.text(creditLine, col2 + 4, tbY + 15);
   }
 
   // ── Page 1: Floor Plan ──
